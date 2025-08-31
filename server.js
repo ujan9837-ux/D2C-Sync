@@ -129,6 +129,11 @@ async function saveUpdatedGstItems() {
 
 async function deleteGstItem(itemId) {
   try {
+    // Ensure data is loaded
+    if (inMemoryGstItems.length === 0) {
+      await getGstItems();
+    }
+
     // Update in-memory storage
     const initialLength = inMemoryGstItems.length;
     inMemoryGstItems = inMemoryGstItems.filter(item => item.id !== itemId);
@@ -418,6 +423,11 @@ app.delete('/api/gst-items', async (req, res) => {
 // DELETE endpoint to delete completed GST items
 app.delete('/api/gst-items/completed', async (req, res) => {
   try {
+    // Ensure data is loaded
+    if (inMemoryGstItems.length === 0) {
+      await getGstItems();
+    }
+
     const initialLength = inMemoryGstItems.length;
     inMemoryGstItems = inMemoryGstItems.filter(item => item.status !== 'Completed');
     const deletedCount = initialLength - inMemoryGstItems.length;
