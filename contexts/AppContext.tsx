@@ -10,6 +10,7 @@ import {
   updateGstItem,
   deleteGstItem as deleteGstItemApi,
   deleteAllGstItems,
+  deleteCompletedGstItems,
 } from '../services/apiService';
 import toast from 'react-hot-toast';
 
@@ -23,6 +24,7 @@ interface AppContextType {
   generateGstCreditNotes: (itemIds: string[]) => Promise<void>;
   deleteGstItem: (id: string) => Promise<void>;
   deleteAllGstItems: () => Promise<void>;
+  deleteCompletedGstItems: () => Promise<void>;
 }
 
 export const AppContext = createContext<AppContextType>({
@@ -32,6 +34,7 @@ export const AppContext = createContext<AppContextType>({
   loadGstItemsFromFile: () => Promise.resolve(),
   generateGstCreditNotes: () => Promise.resolve(),
   deleteAllGstItems: () => Promise.resolve(),
+  deleteCompletedGstItems: () => Promise.resolve(),
 });
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -134,6 +137,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
+  const deleteCompletedGstItemsFunc = async () => {
+    try {
+      await deleteCompletedGstItems();
+      setGstItems(prev => prev.filter(item => item.status !== 'Completed'));
+      toast.success('Completed GST items deleted successfully.');
+    } catch (error) {
+      console.error('Error deleting completed GST items:', error);
+      toast.error('Failed to delete completed GST items. Please try again.');
+    }
+  };
+
   const value = {
     gstItems,
     loading,
@@ -142,6 +156,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     generateGstCreditNotes,
     deleteGstItem,
     deleteAllGstItems: deleteAllGstItemsFunc,
+    deleteCompletedGstItems: deleteCompletedGstItemsFunc,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

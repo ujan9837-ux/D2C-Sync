@@ -11,7 +11,7 @@ import { ArrowPathIcon, DocumentArrowDownIcon, ChevronUpIcon, ChevronDownIcon, C
 type SortableKeys = 'customerName' | 'originalInvoiceDate' | 'rtoDate' | 'orderValue' | 'gstToReclaim';
 
 const GstAutomationHub: React.FC = () => {
-    const { gstItems, generateGstCreditNotes, loading, uploadAndProcessFile, deleteGstItem, deleteAllGstItems } = useContext(AppContext);
+    const { gstItems, generateGstCreditNotes, loading, uploadAndProcessFile, deleteGstItem, deleteAllGstItems, deleteCompletedGstItems } = useContext(AppContext);
     const [activeTab, setActiveTab] = useState<'Pending' | 'Completed'>('Pending');
     const [selectedItems, setSelectedItems] = useState(new Set<string>());
     const [processingItems, setProcessingItems] = useState(new Set<string>());
@@ -128,7 +128,7 @@ const GstAutomationHub: React.FC = () => {
         });
     };
     
-    const handleExport = () => {
+    const handleExport = async () => {
         if(sortedItems.length === 0) {
             toast.error("No data to export.");
             return;
@@ -169,9 +169,10 @@ const GstAutomationHub: React.FC = () => {
         const today = new Date().toISOString().slice(0, 10);
         exportToCsv(`gstr1-cdnur-export-${today}.csv`, gstr1Data);
         toast.success("Export successful! The CSV is formatted for the GSTN Returns Offline Tool.");
+        await deleteCompletedGstItems();
     }
 
-    const handleExportZoho = () => {
+    const handleExportZoho = async () => {
         if (sortedItems.length === 0) {
             toast.error("No data to export.");
             return;
@@ -190,9 +191,10 @@ const GstAutomationHub: React.FC = () => {
         const today = new Date().toISOString().slice(0, 10);
         exportToCsv(`zoho-books-export-${today}.csv`, zohoData);
         toast.success("Export successful for Zoho Books!");
+        await deleteCompletedGstItems();
     }
 
-    const handleExportKhatabook = () => {
+    const handleExportKhatabook = async () => {
         if (sortedItems.length === 0) {
             toast.error("No data to export.");
             return;
@@ -209,7 +211,14 @@ const GstAutomationHub: React.FC = () => {
         const today = new Date().toISOString().slice(0, 10);
         exportToCsv(`khatabook-export-${today}.csv`, khatabookData);
         toast.success("Export successful for Khatabook!");
+        await deleteCompletedGstItems();
     }
+
+    const handleDeleteAllCompleted = async () => {
+        if (window.confirm('Are you sure you want to delete all completed GST items? This action cannot be undone.')) {
+            await deleteCompletedGstItems();
+        }
+    };
 
     const handleDeleteItem = async (itemId: string) => {
         if (window.confirm('Are you sure you want to delete this GST item? This action cannot be undone.')) {
@@ -275,6 +284,9 @@ const GstAutomationHub: React.FC = () => {
                         )}
                         {activeTab === 'Completed' && (
                             <>
+                                <Button onClick={handleDeleteAllCompleted} variant="secondary" className="w-full sm:w-auto">
+                                    Delete All
+                                </Button>
                                 <Button onClick={handleExport} variant="secondary" className="w-full sm:w-auto">
                                     <DocumentArrowDownIcon className="w-5 h-5 mr-2" />
                                     Export for GSTR-1 Offline Tool

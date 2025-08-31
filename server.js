@@ -415,6 +415,26 @@ app.delete('/api/gst-items', async (req, res) => {
   }
 });
 
+// DELETE endpoint to delete completed GST items
+app.delete('/api/gst-items/completed', async (req, res) => {
+  try {
+    const initialLength = inMemoryGstItems.length;
+    inMemoryGstItems = inMemoryGstItems.filter(item => item.status !== 'Completed');
+    const deletedCount = initialLength - inMemoryGstItems.length;
+
+    if (deletedCount > 0) {
+      // Save updated items to persistent storage
+      await saveUpdatedGstItems();
+      res.json({ message: `${deletedCount} completed GST items deleted successfully` });
+    } else {
+      res.json({ message: 'No completed GST items found to delete' });
+    }
+  } catch (error) {
+    console.error('Error deleting completed GST items:', error);
+    res.status(500).json({ error: 'Failed to delete completed GST items' });
+  }
+});
+
 // Export for Vercel serverless
 export default app;
 
