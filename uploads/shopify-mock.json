@@ -1,0 +1,230 @@
+[
+  {
+    "id": 1001,
+    "name": "#1001",
+    "customer": {
+      "first_name": "Aarav",
+      "last_name": "Sharma"
+    },
+    "created_at": "2024-07-15T10:30:00+05:30",
+    "shipping_address": {
+      "city": "Mumbai",
+      "province": "Maharashtra"
+    },
+    "line_items": [
+      {
+        "id": 2001,
+        "title": "Organic Cotton T-shirt",
+        "quantity": 1,
+        "price": "1299.00",
+        "tax_lines": [
+          {
+            "title": "IGST",
+            "price": "233.82",
+            "rate": 0.18
+          }
+        ]
+      }
+    ],
+    "refunds": [
+      {
+        "created_at": "2024-07-22T14:00:00+05:30",
+        "refund_line_items": [
+          {
+            "line_item_id": 2001,
+            "quantity": 1,
+            "subtotal": "1299.00",
+            "total_tax": "233.82"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 1002,
+    "name": "#1002",
+    "customer": {
+      "first_name": "Diya",
+      "last_name": "Patel"
+    },
+    "created_at": "2024-06-20T11:00:00+05:30",
+     "shipping_address": {
+      "city": "Delhi",
+      "province": "Delhi"
+    },
+    "line_items": [
+      {
+        "id": 2002,
+        "title": "Wireless Earbuds",
+        "quantity": 1,
+        "price": "3999.00",
+        "tax_lines": [
+           {
+            "title": "CGST",
+            "price": "359.91",
+            "rate": 0.09
+          },
+          {
+            "title": "SGST",
+            "price": "359.91",
+            "rate": 0.09
+          }
+        ]
+      }
+    ],
+    "refunds": [
+       {
+        "created_at": "2024-06-28T18:00:00+05:30",
+        "refund_line_items": [
+          {
+            "line_item_id": 2002,
+            "quantity": 1,
+            "subtotal": "3999.00",
+            "total_tax": "719.82"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 1003,
+    "name": "#1003",
+    "customer": {
+      "first_name": "Rohan",
+      "last_name": "Verma"
+    },
+    "created_at": "2024-08-01T09:15:00+05:30",
+    "shipping_address": {
+      "city": "Bengaluru",
+      "province": "Karnataka"
+    },
+    "line_items": [
+      {
+        "id": 2003,
+        "title": "Handcrafted Leather Wallet",
+        "quantity": 1,
+        "price": "1499.00",
+        "tax_lines": [
+          {
+            "title": "IGST",
+            "price": "269.82",
+            "rate": 0.18
+          }
+        ]
+      },
+      {
+        "id": 2004,
+        "title": "Vegan Protein Powder (500g)",
+        "quantity": 1,
+        "price": "1799.00",
+        "tax_lines": [
+           {
+            "title": "IGST",
+            "price": "323.82",
+            "rate": 0.18
+          }
+        ]
+      }
+    ],
+    "refunds": [
+       {
+        "created_at": "2024-08-10T12:30:00+05:30",
+        "refund_line_items": [
+          {
+            "line_item_id": 2003,
+            "quantity": 1,
+            "subtotal": "1499.00",
+            "total_tax": "269.82"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 1004,
+    "name": "#1004",
+    "customer": {
+      "first_name": "Isha",
+      "last_name": "Nair"
+    },
+    "created_at": "2024-07-05T16:45:00+05:30",
+    "shipping_address": {
+      "city": "Chennai",
+      "province": "Tamil Nadu"
+    },
+    "line_items": [
+      {
+        "id": 2005,
+        "title": "Smartwatch",
+        "quantity": 1,
+        "price": "8999.00",
+        "tax_lines": [
+          {
+            "title": "IGST",
+            "price": "1619.82",
+            "rate": 0.18
+          }
+        ]
+      }
+    ],
+    "refunds": [
+       {
+        "created_at": "2024-07-14T11:00:00+05:30",
+        "refund_line_items": [
+          {
+            "line_item_id": 2005,
+            "quantity": 1,
+            "subtotal": "8999.00",
+            "total_tax": "1619.82"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 1005,
+    "name": "#1005",
+    "customer": {
+      "first_name": "Arjun",
+      "last_name": "Reddy"
+    },
+    "created_at": "2024-08-12T20:00:00+05:30",
+    "shipping_address": {
+      "city": "Hyderabad",
+      "province": "Telangana"
+    },
+    "line_items": [
+      {
+        "id": 2006,
+        "title": "Sustainable Denim Jeans",
+        "quantity": 1,
+        "price": "2999.00",
+        "tax_lines": [
+          {
+            "title": "CGST",
+            "price": "149.95",
+            "rate": 0.05
+          },
+           {
+            "title": "SGST",
+            "price": "149.95",
+            "rate": 0.05
+          }
+        ]
+      }
+    ],
+    "refunds": [
+       {
+        "created_at": "2024-08-20T15:00:00+05:30",
+        "refund_line_items": [
+          {
+            "line_item_id": 2006,
+            "quantity": 1,
+            "subtotal": "2999.00",
+            "total_tax": "299.90"
+          }
+        ]
+      }
+    ]
+  }
+]

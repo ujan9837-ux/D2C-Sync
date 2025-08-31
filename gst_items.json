@@ -1,0 +1,26 @@
+[
+  {
+    "id": "gst_1756671244493_0",
+    "customerName": "John Doe",
+    "invoiceDate": "2023-01-01",
+    "invoiceNumber": "INV-001",
+    "rtoDate": "2023-01-05",
+    "products": "Product A",
+    "orderValue": 1500,
+    "gstToReclaim": 225,
+    "placeOfSupply": "Delhi",
+    "status": "Pending"
+  },
+  {
+    "id": "gst_1756671244493_1",
+    "customerName": "Jane Smith",
+    "invoiceDate": "2023-02-01",
+    "invoiceNumber": "INV-002",
+    "rtoDate": "2023-02-10",
+    "products": "Product B",
+    "orderValue": 2200,
+    "gstToReclaim": 330,
+    "placeOfSupply": "Mumbai",
+    "status": "Pending"
+  }
+]
