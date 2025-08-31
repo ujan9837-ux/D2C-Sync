@@ -10,7 +10,13 @@ import { kv } from '@vercel/kv';
 
 dotenv.config({ path: '.env.local' });
 
-const storage = multer.diskStorage({
+// Check if KV is available
+let isKvAvailable = !!process.env.KV_URL;
+
+// In-memory storage for GST items (fallback when no KV or file storage)
+let inMemoryGstItems = [];
+
+const storage = isKvAvailable ? multer.memoryStorage() : multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, 'uploads/');
   },
@@ -23,32 +29,39 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 const app = express();
-const PORT = 3001;
-const SHOPIFY_WEBHOOK_SECRET = 'your-shopify-webhook-secret-here'; // Replace with actual secret in production
+const PORT = process.env.PORT || 3001;
+const SHOPIFY_WEBHOOK_SECRET = process.env.SHOPIFY_WEBHOOK_SECRET || 'your-shopify-webhook-secret-here';
 
 // Middleware
 app.use(cors());
 app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf; } })); // For webhook verification
 
-// GST Item Storage Functions (using local file for testing)
-const GST_STORAGE_FILE = 'gst_items.json';
-
+// GST Item Storage Functions (using in-memory, KV, or local file)
 async function saveGstItems(items) {
   try {
-    let allItems = [];
-    if (fs.existsSync(GST_STORAGE_FILE)) {
+    // Always update in-memory storage
+    inMemoryGstItems = [...inMemoryGstItems, ...items];
+    console.log(`Saved ${items.length} GST items to in-memory storage`);
+
+    if (isKvAvailable) {
       try {
-        const data = await fs.promises.readFile(GST_STORAGE_FILE, 'utf8');
-        allItems = JSON.parse(data);
-      } catch (parseError) {
-        console.log('Existing data is not valid JSON, starting with empty array');
-        allItems = [];
+        await kv.set('gst-items', inMemoryGstItems);
+        console.log(`Saved GST items to KV`);
+        return 'gst-items';
+      } catch (kvError) {
+        console.warn('KV not available, using in-memory only:', kvError.message);
+        isKvAvailable = false; // Disable KV for future calls
       }
     }
-    allItems.push(...items);
-    await fs.promises.writeFile(GST_STORAGE_FILE, JSON.stringify(allItems, null, 2));
-    console.log(`Saved ${items.length} GST items to ${GST_STORAGE_FILE}`);
-    return GST_STORAGE_FILE;
+
+    // For local development, also save to file
+    if (process.env.NODE_ENV !== 'production') {
+      const filePath = 'gst-items.json';
+      await fs.promises.writeFile(filePath, JSON.stringify(inMemoryGstItems, null, 2));
+      console.log(`Saved GST items to local file`);
+    }
+
+    return 'gst-items';
   } catch (error) {
     console.error('Error saving GST items:', error);
     throw error;
@@ -57,16 +70,78 @@ async function saveGstItems(items) {
 
 async function getGstItems() {
   try {
-    if (!fs.existsSync(GST_STORAGE_FILE)) return [];
-    const data = await fs.promises.readFile(GST_STORAGE_FILE, 'utf8');
-    try {
-      return JSON.parse(data);
-    } catch (parseError) {
-      console.log('Stored data is not valid JSON, returning empty array');
-      return [];
+    // If in-memory has items, return them
+    if (inMemoryGstItems.length > 0) {
+      return inMemoryGstItems;
     }
+
+    if (isKvAvailable) {
+      try {
+        const items = await kv.get('gst-items') || [];
+        inMemoryGstItems = items; // Load into memory
+        return items;
+      } catch (kvError) {
+        console.warn('KV not available, falling back to local storage:', kvError.message);
+        isKvAvailable = false; // Disable KV for future calls
+      }
+    }
+
+    // For local development, load from file
+    if (process.env.NODE_ENV !== 'production') {
+      const filePath = 'gst-items.json';
+      if (fs.existsSync(filePath)) {
+        const data = await fs.promises.readFile(filePath, 'utf8');
+        inMemoryGstItems = JSON.parse(data);
+        return inMemoryGstItems;
+      }
+    }
+
+    return [];
   } catch (error) {
     console.error('Error retrieving GST items:', error);
+    throw error;
+  }
+}
+
+async function saveUpdatedGstItems() {
+  try {
+    if (isKvAvailable) {
+      try {
+        await kv.set('gst-items', inMemoryGstItems);
+        console.log(`Saved updated GST items to KV`);
+      } catch (kvError) {
+        console.warn('KV not available, using in-memory only:', kvError.message);
+        isKvAvailable = false; // Disable KV for future calls
+      }
+    }
+
+    // For local development, also save to file
+    if (process.env.NODE_ENV !== 'production') {
+      const filePath = 'gst-items.json';
+      await fs.promises.writeFile(filePath, JSON.stringify(inMemoryGstItems, null, 2));
+      console.log(`Saved updated GST items to local file`);
+    }
+  } catch (error) {
+    console.error('Error saving updated GST items:', error);
+    throw error;
+  }
+}
+
+async function deleteGstItem(itemId) {
+  try {
+    // Update in-memory storage
+    const initialLength = inMemoryGstItems.length;
+    inMemoryGstItems = inMemoryGstItems.filter(item => item.id !== itemId);
+    const deleted = inMemoryGstItems.length < initialLength;
+    if (deleted) {
+      console.log(`Deleted GST item ${itemId} from in-memory storage`);
+      // Save updated items to persistent storage
+      await saveUpdatedGstItems();
+    }
+
+    return deleted;
+  } catch (error) {
+    console.error('Error deleting GST item:', error);
     throw error;
   }
 }
@@ -117,13 +192,24 @@ app.get('/api/rto-data', (req, res) => {
 });
 
 // POST endpoint for file upload
-app.post('/api/upload', upload.single('file'), (req, res) => {
+app.post('/api/upload', upload.single('file'), async (req, res) => {
   if (!req.file) {
     return res.status(400).send('No file uploaded.');
   }
+
+  // If using KV and memory storage, save file content to KV
+  if (isKvAvailable) {
+    try {
+      await kv.set('upload:' + req.file.filename, req.file.buffer);
+    } catch (kvError) {
+      console.warn('Failed to save upload to KV:', kvError.message);
+      return res.status(500).send('Failed to save file.');
+    }
+  }
+
   res.json({
     filename: req.file.filename,
-    path: req.file.path
+    path: req.file.path || null // Path is null for memory storage
   });
 });
 
@@ -156,24 +242,21 @@ app.get('/api/file/:filename', (req, res) => {
 
 // POST endpoint to process file into GST action items
 app.post('/api/process-file', async (req, res) => {
-  const { filename } = req.body;
+  const { content, filename } = req.body;
+
+  if (!content) {
+    return res.status(400).json({ error: 'File content is required' });
+  }
 
   if (!filename) {
     return res.status(400).json({ error: 'Filename is required' });
   }
 
-  const filePath = path.join('uploads', filename);
   const fileExt = path.extname(filename).toLowerCase();
 
-  // Check if file exists
-  if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ error: 'File not found' });
-  }
+  let data = content;
 
-  // Read file content
   try {
-    const data = await fs.promises.readFile(filePath, 'utf8');
-
     let parsedData;
 
     if (fileExt === '.csv') {
@@ -274,7 +357,70 @@ app.get('/api/gst-items', async (req, res) => {
   }
 });
 
-// Start the server
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// PUT endpoint to update a GST item
+app.put('/api/gst-items/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, creditNoteNumber, creditNoteDate } = req.body;
+
+    // Ensure data is loaded
+    if (inMemoryGstItems.length === 0) {
+      await getGstItems();
+    }
+
+    const item = inMemoryGstItems.find(item => item.id === id);
+    if (!item) {
+      return res.status(404).json({ error: 'GST item not found' });
+    }
+    if (status) item.status = status;
+    if (creditNoteNumber) item.creditNoteNumber = creditNoteNumber;
+    if (creditNoteDate) item.creditNoteDate = creditNoteDate;
+
+    // Save updated items to persistent storage
+    await saveUpdatedGstItems();
+
+    res.json(item);
+  } catch (error) {
+    console.error('Error updating GST item:', error);
+    res.status(500).json({ error: 'Failed to update GST item' });
+  }
 });
+
+// DELETE endpoint to delete a GST item
+app.delete('/api/gst-items/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const success = await deleteGstItem(id);
+    if (success) {
+      res.json({ message: 'GST item deleted successfully' });
+    } else {
+      res.status(404).json({ error: 'GST item not found' });
+    }
+  } catch (error) {
+    console.error('Error deleting GST item:', error);
+    res.status(500).json({ error: 'Failed to delete GST item' });
+  }
+});
+
+// DELETE endpoint to delete all GST items
+app.delete('/api/gst-items', async (req, res) => {
+  try {
+    inMemoryGstItems = [];
+    // Save updated (empty) items to persistent storage
+    await saveUpdatedGstItems();
+    res.json({ message: 'All GST items deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting all GST items:', error);
+    res.status(500).json({ error: 'Failed to delete all GST items' });
+  }
+});
+
+// Export for Vercel serverless
+export default app;
+
+// For local development
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}

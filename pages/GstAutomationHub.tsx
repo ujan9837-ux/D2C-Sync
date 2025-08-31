@@ -6,12 +6,12 @@ import Button from '../components/ui/Button';
 import { Checkbox } from '../components/ui/Checkbox';
 import toast from 'react-hot-toast';
 import { exportToCsv } from '../utils/reportUtils';
-import { ArrowPathIcon, DocumentArrowDownIcon, ChevronUpIcon, ChevronDownIcon, ChevronUpDownIcon } from '../components/icons/Icons';
+import { ArrowPathIcon, DocumentArrowDownIcon, ChevronUpIcon, ChevronDownIcon, ChevronUpDownIcon, XMarkIcon } from '../components/icons/Icons';
 
 type SortableKeys = 'customerName' | 'originalInvoiceDate' | 'rtoDate' | 'orderValue' | 'gstToReclaim';
 
 const GstAutomationHub: React.FC = () => {
-    const { gstItems, generateGstCreditNotes, loading, uploadAndProcessFile } = useContext(AppContext);
+    const { gstItems, generateGstCreditNotes, loading, uploadAndProcessFile, deleteGstItem, deleteAllGstItems } = useContext(AppContext);
     const [activeTab, setActiveTab] = useState<'Pending' | 'Completed'>('Pending');
     const [selectedItems, setSelectedItems] = useState(new Set<string>());
     const [processingItems, setProcessingItems] = useState(new Set<string>());
@@ -210,6 +210,12 @@ const GstAutomationHub: React.FC = () => {
         exportToCsv(`khatabook-export-${today}.csv`, khatabookData);
         toast.success("Export successful for Khatabook!");
     }
+
+    const handleDeleteItem = async (itemId: string) => {
+        if (window.confirm('Are you sure you want to delete this GST item? This action cannot be undone.')) {
+            await deleteGstItem(itemId);
+        }
+    };
     
     const StatusBadge: React.FC<{ status: GstActionItem['status'] }> = ({ status }) => {
         const colorClasses: { [key in GstActionItem['status']]: string } = {
@@ -251,9 +257,14 @@ const GstAutomationHub: React.FC = () => {
                 
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center my-4 gap-4 min-h-[40px]">
                     {activeTab === 'Pending' && (
-                        <Button onClick={handleImportData} variant="secondary" className="w-full sm:w-auto">
-                            Import Data
-                        </Button>
+                        <>
+                            <Button onClick={handleImportData} variant="secondary" className="w-full sm:w-auto">
+                                Import Data
+                            </Button>
+                            <Button onClick={() => deleteAllGstItems()} variant="secondary" className="w-full sm:w-auto">
+                                Delete All
+                            </Button>
+                        </>
                     )}
                     <div className="flex flex-col sm:flex-row gap-4">
                         {activeTab === 'Pending' && selectedItems.size > 0 && (

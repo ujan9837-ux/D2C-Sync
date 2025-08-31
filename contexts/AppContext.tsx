@@ -4,11 +4,16 @@ import {
 } from '../types';
 import { mapShopifyOrderToGstActionItem, ShopifyOrder } from '../utils/shopifyMapper';
 import {
-    getGstData,
-    uploadFile,
-    processFile,
+  getGstData,
+  uploadFile,
+  processFile,
+  updateGstItem,
+  deleteGstItem as deleteGstItemApi,
+  deleteAllGstItems,
 } from '../services/apiService';
 import toast from 'react-hot-toast';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? '' : 'http://localhost:3001');
 
 interface AppContextType {
   gstItems: GstActionItem[];
@@ -16,6 +21,8 @@ interface AppContextType {
   uploadAndProcessFile: (file: File) => Promise<void>;
   loadGstItemsFromFile: (filename: string) => Promise<void>;
   generateGstCreditNotes: (itemIds: string[]) => Promise<void>;
+  deleteGstItem: (id: string) => Promise<void>;
+  deleteAllGstItems: () => Promise<void>;
 }
 
 export const AppContext = createContext<AppContextType>({
@@ -24,6 +31,7 @@ export const AppContext = createContext<AppContextType>({
   uploadAndProcessFile: () => Promise.resolve(),
   loadGstItemsFromFile: () => Promise.resolve(),
   generateGstCreditNotes: () => Promise.resolve(),
+  deleteAllGstItems: () => Promise.resolve(),
 });
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -50,31 +58,35 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   
   const generateGstCreditNotes = async (itemIds: string[]) => {
-    await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000));
-
     const currentDate = new Date().toISOString();
     let creditNoteCounter = gstItems.filter(item => item.status === 'Completed' && item.creditNoteNumber).length;
 
-    const updatedGstItems = gstItems.map(item => {
-      if (itemIds.includes(item.id)) {
-        creditNoteCounter++;
-        return {
-          ...item,
-          status: 'Completed' as const,
-          creditNoteNumber: `CN-2425-${String(creditNoteCounter).padStart(3, '0')}`,
-          creditNoteDate: currentDate,
-        };
-      }
-      return item;
+    const updatePromises = itemIds.map(async (id) => {
+      creditNoteCounter++;
+      const updates = {
+        status: 'Completed' as const,
+        creditNoteNumber: `CN-2425-${String(creditNoteCounter).padStart(3, '0')}`,
+        creditNoteDate: currentDate,
+      };
+      return updateGstItem(id, updates);
     });
-    setGstItems(updatedGstItems);
-    toast.success(`Generated ${itemIds.length} credit note(s) successfully.`);
+
+    try {
+      await Promise.all(updatePromises);
+      // Refresh the data
+      const updatedItems = await getGstData();
+      setGstItems(updatedItems);
+      toast.success(`Generated ${itemIds.length} credit note(s) successfully.`);
+    } catch (error) {
+      console.error('Error generating credit notes:', error);
+      toast.error('Failed to generate credit notes.');
+    }
   };
 
   const uploadAndProcessFile = async (file: File) => {
     try {
-      const filename = await uploadFile(file);
-      const processedData = await processFile(filename);
+      const content = await file.text();
+      const processedData = await processFile(content, file.name);
       setGstItems(prev => [...prev, ...processedData]);
       toast.success(`Processed ${processedData.length} GST action items from file.`);
     } catch (error) {
@@ -85,7 +97,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const loadGstItemsFromFile = async (filename: string) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/file/${filename}`);
+      const response = await fetch(`${API_BASE_URL}/api/file/${filename}`);
       if (!response.ok) {
         throw new Error('Failed to fetch file');
       }
@@ -100,12 +112,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
+  const deleteGstItem = async (id: string) => {
+    try {
+      await deleteGstItemApi(id);
+      setGstItems(prev => prev.filter(item => item.id !== id));
+      toast.success('GST item deleted successfully.');
+    } catch (error) {
+      console.error('Error deleting GST item:', error);
+      toast.error('Failed to delete GST item. Please try again.');
+    }
+  };
+
+  const deleteAllGstItemsFunc = async () => {
+    try {
+      await deleteAllGstItems();
+      setGstItems([]);
+      toast.success('All GST items deleted successfully.');
+    } catch (error) {
+      console.error('Error deleting all GST items:', error);
+      toast.error('Failed to delete all GST items. Please try again.');
+    }
+  };
+
   const value = {
     gstItems,
     loading,
     uploadAndProcessFile,
     loadGstItemsFromFile,
     generateGstCreditNotes,
+    deleteGstItem,
+    deleteAllGstItems: deleteAllGstItemsFunc,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -1,5 +1,7 @@
 import { GstActionItem } from '../types';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+
 // --- MOCK DATA GENERATION ---
 
 // GST Automation Hub Data
@@ -17,7 +19,7 @@ const mockFetch = <T>(data: T, delay: number = 300): Promise<T> => new Promise(r
 
 export const getGstData = async (): Promise<GstActionItem[]> => {
   try {
-    const response = await fetch('http://localhost:3001/api/gst-items');
+    const response = await fetch(`${API_BASE_URL}/api/gst-items`);
     if (!response.ok) {
       throw new Error('Failed to fetch GST data');
     }
@@ -34,7 +36,7 @@ export const uploadFile = async (file: File): Promise<string> => {
   const formData = new FormData();
   formData.append('file', file);
 
-  const response = await fetch('http://localhost:3001/api/upload', {
+  const response = await fetch(`${API_BASE_URL}/api/upload`, {
     method: 'POST',
     body: formData,
   });
@@ -47,18 +49,55 @@ export const uploadFile = async (file: File): Promise<string> => {
   return data.filename;
 };
 
-export const processFile = async (filename: string): Promise<GstActionItem[]> => {
-  const response = await fetch('http://localhost:3001/api/process-file', {
+export const processFile = async (content: string, filename: string): Promise<GstActionItem[]> => {
+  const response = await fetch(`${API_BASE_URL}/api/process-file`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ filename }),
+    body: JSON.stringify({ content, filename }),
   });
 
   if (!response.ok) {
     throw new Error('Failed to process file');
   }
 
+  const data = await response.json();
+  return data.gstItems;
+};
+
+export const updateGstItem = async (id: string, updates: Partial<GstActionItem>): Promise<GstActionItem> => {
+  const response = await fetch(`${API_BASE_URL}/api/gst-items/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(updates),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to update GST item');
+  }
+
   return await response.json();
+};
+
+export const deleteGstItem = async (id: string): Promise<void> => {
+  const response = await fetch(`${API_BASE_URL}/api/gst-items/${id}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to delete GST item');
+  }
+};
+
+export const deleteAllGstItems = async (): Promise<void> => {
+  const response = await fetch(`${API_BASE_URL}/api/gst-items`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to delete all GST items');
+  }
 };
