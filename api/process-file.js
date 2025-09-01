@@ -1,18 +1,13 @@
 import pg from 'pg';
 import Papa from 'papaparse';
 
-// Check for database URL in multiple possible environment variables (same as server.js)
-const dbUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL_NON_POOLING;
-const pool = dbUrl ? new pg.Pool({ connectionString: dbUrl }) : null;
+// Direct database connection using Neon DATABASE_URL
+const dbUrl = 'postgresql://neondb_owner:npg_A6yH3CuqXErI@ep-solitary-shadow-a1r1bs0n-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require';
+const pool = new pg.Pool({ connectionString: dbUrl });
 
 export default async function handler(req, res) {
   console.log('API /api/process-file called with method:', req.method);
-  console.log('Environment check - DATABASE_URL present:', !!process.env.DATABASE_URL);
-  console.log('Environment check - POSTGRES_URL present:', !!process.env.POSTGRES_URL);
-  console.log('Environment check - POSTGRES_PRISMA_URL present:', !!process.env.POSTGRES_PRISMA_URL);
-  console.log('Environment check - POSTGRES_URL_NON_POOLING present:', !!process.env.POSTGRES_URL_NON_POOLING);
-  console.log('Resolved DB URL present:', !!dbUrl);
-  console.log('Pool available:', !!pool);
+  // Database connection established
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
