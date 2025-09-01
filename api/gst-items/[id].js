@@ -1,13 +1,24 @@
 import pg from 'pg';
 
-const pool = process.env.DATABASE_URL ? new pg.Pool({ connectionString: process.env.DATABASE_URL }) : null;
+// Check for database URL in multiple possible environment variables (same as server.js)
+const dbUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL_NON_POOLING;
+const pool = dbUrl ? new pg.Pool({ connectionString: dbUrl }) : null;
 
 export default async function handler(req, res) {
   const { id } = req.query;
 
+  console.log('API /api/gst-items/[id] called with method:', req.method, 'id:', id);
+  console.log('Environment check - DATABASE_URL present:', !!process.env.DATABASE_URL);
+  console.log('Environment check - POSTGRES_URL present:', !!process.env.POSTGRES_URL);
+  console.log('Environment check - POSTGRES_PRISMA_URL present:', !!process.env.POSTGRES_PRISMA_URL);
+  console.log('Environment check - POSTGRES_URL_NON_POOLING present:', !!process.env.POSTGRES_URL_NON_POOLING);
+  console.log('Resolved DB URL present:', !!dbUrl);
+  console.log('Pool available:', !!pool);
   if (req.method === 'PUT') {
     try {
+      console.log('PUT request body:', req.body);
       if (!pool) {
+        console.error('Database pool not available for PUT - no valid DATABASE_URL found');
         return res.status(500).json({ error: 'Database connection not available' });
       }
       const { status, creditNoteNumber, creditNoteDate } = req.body;
@@ -73,6 +84,7 @@ export default async function handler(req, res) {
   } else if (req.method === 'DELETE') {
     try {
       if (!pool) {
+        console.error('Database pool not available for DELETE - no valid DATABASE_URL found');
         return res.status(500).json({ error: 'Database connection not available' });
       }
       const result = await pool.query('DELETE FROM gst_items WHERE id = $1 RETURNING *', [id]);

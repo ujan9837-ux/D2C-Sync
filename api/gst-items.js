@@ -1,14 +1,58 @@
 import pg from 'pg';
 
-const pool = process.env.DATABASE_URL ? new pg.Pool({ connectionString: process.env.DATABASE_URL }) : null;
+// Check for database URL in multiple possible environment variables (same as server.js)
+const dbUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL_NON_POOLING;
+const pool = dbUrl ? new pg.Pool({ connectionString: dbUrl }) : null;
 
 export default async function handler(req, res) {
+  console.log('API /api/gst-items called with method:', req.method);
+  console.log('Environment check - DATABASE_URL present:', !!process.env.DATABASE_URL);
+  console.log('Environment check - POSTGRES_URL present:', !!process.env.POSTGRES_URL);
+  console.log('Environment check - POSTGRES_PRISMA_URL present:', !!process.env.POSTGRES_PRISMA_URL);
+  console.log('Environment check - POSTGRES_URL_NON_POOLING present:', !!process.env.POSTGRES_URL_NON_POOLING);
+  console.log('Resolved DB URL present:', !!dbUrl);
+  console.log('Pool available:', !!pool);
   if (req.method === 'GET') {
     try {
       if (!pool) {
+        console.error('Database pool not available - no valid DATABASE_URL found');
         return res.status(500).json({ error: 'Database connection not available' });
       }
+      console.log('Checking if gst_items table exists...');
+      // First check if table exists
+      const tableCheck = await pool.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables
+          WHERE table_name = 'gst_items'
+        );
+      `);
+
+      if (!tableCheck.rows[0].exists) {
+        console.log('gst_items table does not exist, creating it...');
+        await pool.query(`
+          CREATE TABLE IF NOT EXISTS gst_items (
+            id TEXT PRIMARY KEY,
+            customer_name TEXT,
+            invoice_date DATE,
+            invoice_number TEXT,
+            rto_date DATE,
+            products TEXT,
+            order_value DECIMAL(10,2),
+            gst_to_reclaim DECIMAL(10,2),
+            place_of_supply TEXT,
+            status TEXT DEFAULT 'Pending',
+            credit_note_number TEXT,
+            credit_note_date DATE,
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW()
+          );
+        `);
+        console.log('gst_items table created successfully, returning empty array for empty state');
+        return res.status(200).json({ gstItems: [] });
+      }
+
       const result = await pool.query('SELECT * FROM gst_items ORDER BY created_at DESC');
+      console.log(`Fetched ${result.rows.length} GST items from database`);
       // Transform snake_case to camelCase for frontend compatibility
       const transformedRows = result.rows.map(row => ({
         id: row.id,
@@ -17,8 +61,8 @@ export default async function handler(req, res) {
         invoiceNumber: row.invoice_number,
         rtoDate: row.rto_date,
         products: row.products,
-        orderValue: row.order_value,
-        gstToReclaim: row.gst_to_reclaim,
+        orderValue: parseFloat(row.order_value) || 0,
+        gstToReclaim: parseFloat(row.gst_to_reclaim) || 0,
         placeOfSupply: row.place_of_supply,
         status: row.status,
         creditNoteNumber: row.credit_note_number,
@@ -34,6 +78,7 @@ export default async function handler(req, res) {
   } else if (req.method === 'DELETE') {
     try {
       if (!pool) {
+        console.error('Database pool not available for DELETE - no valid DATABASE_URL found');
         return res.status(500).json({ error: 'Database connection not available' });
       }
       const result = await pool.query('DELETE FROM gst_items RETURNING *');

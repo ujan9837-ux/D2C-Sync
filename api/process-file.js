@@ -1,25 +1,38 @@
 import pg from 'pg';
 import Papa from 'papaparse';
 
-const pool = process.env.DATABASE_URL ? new pg.Pool({ connectionString: process.env.DATABASE_URL }) : null;
+// Check for database URL in multiple possible environment variables (same as server.js)
+const dbUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL_NON_POOLING;
+const pool = dbUrl ? new pg.Pool({ connectionString: dbUrl }) : null;
 
 export default async function handler(req, res) {
+  console.log('API /api/process-file called with method:', req.method);
+  console.log('Environment check - DATABASE_URL present:', !!process.env.DATABASE_URL);
+  console.log('Environment check - POSTGRES_URL present:', !!process.env.POSTGRES_URL);
+  console.log('Environment check - POSTGRES_PRISMA_URL present:', !!process.env.POSTGRES_PRISMA_URL);
+  console.log('Environment check - POSTGRES_URL_NON_POOLING present:', !!process.env.POSTGRES_URL_NON_POOLING);
+  console.log('Resolved DB URL present:', !!dbUrl);
+  console.log('Pool available:', !!pool);
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
     const { content, filename } = req.body;
+    console.log('Processing file:', filename, 'content length:', content ? content.length : 'null');
 
     if (!content) {
+      console.error('File content is required but not provided');
       return res.status(400).json({ error: 'File content is required' });
     }
 
     if (!filename) {
+      console.error('Filename is required but not provided');
       return res.status(400).json({ error: 'Filename is required' });
     }
 
     const fileExt = filename.split('.').pop().toLowerCase();
+    console.log('File extension:', fileExt);
 
     let parsedData;
 
@@ -105,9 +118,34 @@ export default async function handler(req, res) {
 
     // Insert into database
     if (gstItems.length > 0) {
+      console.log(`Inserting ${gstItems.length} GST items into database`);
       if (!pool) {
+        console.error('Database pool not available for insertion - no valid DATABASE_URL found');
         return res.status(500).json({ error: 'Database connection not available' });
       }
+
+      // Ensure table exists
+      console.log('Ensuring gst_items table exists...');
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS gst_items (
+          id TEXT PRIMARY KEY,
+          customer_name TEXT,
+          invoice_date DATE,
+          invoice_number TEXT,
+          rto_date DATE,
+          products TEXT,
+          order_value DECIMAL(10,2),
+          gst_to_reclaim DECIMAL(10,2),
+          place_of_supply TEXT,
+          status TEXT DEFAULT 'Pending',
+          credit_note_number TEXT,
+          credit_note_date DATE,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+        );
+      `);
+      console.log('Table ensured, proceeding with insertion');
+
       const query = `
         INSERT INTO gst_items (id, customer_name, invoice_date, invoice_number, rto_date, products, order_value, gst_to_reclaim, place_of_supply, status)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -124,12 +162,16 @@ export default async function handler(req, res) {
           updated_at = NOW()
       `;
       for (const item of gstItems) {
+        console.log('Inserting item:', item.id);
         await pool.query(query, [
           item.id, item.customerName, item.invoiceDate, item.invoiceNumber,
           item.rtoDate, item.products, item.orderValue, item.gstToReclaim,
           item.placeOfSupply, item.status
         ]);
       }
+      console.log('All items inserted successfully');
+    } else {
+      console.log('No GST items to insert');
     }
 
     res.status(200).json({ gstItems, message: `${gstItems.length} GST items processed successfully` });
