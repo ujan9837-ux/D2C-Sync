@@ -44,14 +44,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Fetch existing GST data on app initialization
   useEffect(() => {
     const fetchExistingGstData = async () => {
+      console.log('AppContext: Starting to fetch existing GST data for clean empty state');
       setLoading(true);
       try {
+        console.log('AppContext: Calling getGstData');
         const existingItems = await getGstData();
+        console.log('AppContext: Successfully fetched GST data, items count:', existingItems.length);
+        if (existingItems.length === 0) {
+          console.log('AppContext: Empty state confirmed - no existing GST items');
+        }
         setGstItems(existingItems);
+        console.log('AppContext: GST items set in state');
       } catch (error) {
-        console.error('Error fetching existing GST data:', error);
-        toast.error('Failed to load existing GST data');
+        console.error('AppContext: Error fetching existing GST data:', error);
+        console.error('AppContext: Error details:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        });
+        // For empty state, set empty array instead of showing error
+        console.log('AppContext: Setting empty array for clean empty state startup');
+        setGstItems([]);
+        toast.error('Failed to load existing GST data - starting with empty state');
       } finally {
+        console.log('AppContext: Setting loading to false');
         setLoading(false);
       }
     };
@@ -61,8 +77,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   
   const generateGstCreditNotes = async (itemIds: string[]) => {
+    console.log('generateGstCreditNotes called with itemIds:', itemIds);
     const currentDate = new Date().toISOString();
     let creditNoteCounter = gstItems.filter(item => item.status === 'Completed' && item.creditNoteNumber).length;
+    console.log('Current credit note counter:', creditNoteCounter);
 
     const updatePromises = itemIds.map(async (id) => {
       creditNoteCounter++;
@@ -71,6 +89,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         creditNoteNumber: `CN-2425-${String(creditNoteCounter).padStart(3, '0')}`,
         creditNoteDate: currentDate,
       };
+      console.log('Updating item', id, 'with:', updates);
       return updateGstItem(id, updates);
     });
 
@@ -87,13 +106,35 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const uploadAndProcessFile = async (file: File) => {
+    console.log('AppContext: uploadAndProcessFile called with file:', file.name, 'size:', file.size, 'type:', file.type);
     try {
-      const content = await file.text();
+      console.log('AppContext: Attempting to read file content using FileReader (Safari-compatible)');
+      const content = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          console.log('AppContext: FileReader onload triggered');
+          resolve(e.target?.result as string);
+        };
+        reader.onerror = (e) => {
+          console.error('AppContext: FileReader error:', e);
+          reject(new Error('Failed to read file'));
+        };
+        reader.readAsText(file);
+      });
+      console.log('AppContext: Successfully read file content, length:', content.length);
+      console.log('AppContext: Calling processFile with content and filename');
       const processedData = await processFile(content, file.name);
+      console.log('AppContext: processFile returned data, items count:', processedData.length);
       setGstItems(prev => [...prev, ...processedData]);
+      console.log('AppContext: GST items updated in state');
       toast.success(`Processed ${processedData.length} GST action items from file.`);
     } catch (error) {
-      console.error('Error uploading and processing file:', error);
+      console.error('AppContext: Error uploading and processing file:', error);
+      console.error('AppContext: Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
       toast.error('Failed to upload and process file. Please try again.');
     }
   };
@@ -127,6 +168,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const deleteAllGstItemsFunc = async () => {
+    console.log('deleteAllGstItemsFunc called');
     try {
       await deleteAllGstItems();
       setGstItems([]);

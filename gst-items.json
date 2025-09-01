@@ -1,6 +1,6 @@
 [
   {
-    "id": "gst_1756678071959_0",
+    "id": "gst_1756724095993_0",
     "customerName": "Aarav Sharma",
     "invoiceDate": "2025-08-15",
     "invoiceNumber": "#1021",
@@ -9,12 +9,10 @@
     "orderValue": 1299,
     "gstToReclaim": 233.82,
     "placeOfSupply": "27-Maharashtra",
-    "status": "Completed",
-    "creditNoteNumber": "CN-2425-001",
-    "creditNoteDate": "2025-08-31T22:07:54.893Z"
+    "status": "Pending"
   },
   {
-    "id": "gst_1756678071959_1",
+    "id": "gst_1756724095993_1",
     "customerName": "Diya Patel",
     "invoiceDate": "2025-07-20",
     "invoiceNumber": "#1022",
@@ -23,12 +21,10 @@
     "orderValue": 3999,
     "gstToReclaim": 719.82,
     "placeOfSupply": "29-Karnataka",
-    "status": "Completed",
-    "creditNoteNumber": "CN-2425-002",
-    "creditNoteDate": "2025-08-31T22:07:54.893Z"
+    "status": "Pending"
   },
   {
-    "id": "gst_1756678071959_2",
+    "id": "gst_1756724095993_2",
     "customerName": "Rohan Verma",
     "invoiceDate": "2025-08-01",
     "invoiceNumber": "#1023",
@@ -37,12 +33,10 @@
     "orderValue": 3298,
     "gstToReclaim": 593.64,
     "placeOfSupply": "27-Maharashtra",
-    "status": "Completed",
-    "creditNoteNumber": "CN-2425-003",
-    "creditNoteDate": "2025-08-31T22:07:54.893Z"
+    "status": "Pending"
   },
   {
-    "id": "gst_1756678071959_3",
+    "id": "gst_1756724095993_3",
     "customerName": "Isha Nair",
     "invoiceDate": "2025-07-05",
     "invoiceNumber": "#1024",
@@ -51,12 +45,10 @@
     "orderValue": 8999,
     "gstToReclaim": 1619.82,
     "placeOfSupply": "33-Tamil Nadu",
-    "status": "Completed",
-    "creditNoteNumber": "CN-2425-004",
-    "creditNoteDate": "2025-08-31T22:07:54.893Z"
+    "status": "Pending"
   },
   {
-    "id": "gst_1756678071959_4",
+    "id": "gst_1756724095993_4",
     "customerName": "Arjun Reddy",
     "invoiceDate": "2025-08-12",
     "invoiceNumber": "#1025",
@@ -65,12 +57,10 @@
     "orderValue": 2999,
     "gstToReclaim": 149.95,
     "placeOfSupply": "36-Telangana",
-    "status": "Completed",
-    "creditNoteNumber": "CN-2425-005",
-    "creditNoteDate": "2025-08-31T22:07:54.893Z"
+    "status": "Pending"
   },
   {
-    "id": "gst_1756678071959_5",
+    "id": "gst_1756724095993_5",
     "customerName": "Kavya Singh",
     "invoiceDate": "2025-05-18",
     "invoiceNumber": "#1026",
@@ -79,12 +69,10 @@
     "orderValue": 1098,
     "gstToReclaim": 98.82,
     "placeOfSupply": "Rajasthan",
-    "status": "Completed",
-    "creditNoteNumber": "CN-2425-006",
-    "creditNoteDate": "2025-08-31T22:07:54.893Z"
+    "status": "Pending"
   },
   {
-    "id": "gst_1756678071959_6",
+    "id": "gst_1756724095993_6",
     "customerName": "Vikrant Joshi",
     "invoiceDate": "2025-04-22",
     "invoiceNumber": "#1027",
@@ -93,12 +81,10 @@
     "orderValue": 899,
     "gstToReclaim": 161.82,
     "placeOfSupply": "24-Gujarat",
-    "status": "Completed",
-    "creditNoteNumber": "CN-2425-007",
-    "creditNoteDate": "2025-08-31T22:07:54.893Z"
+    "status": "Pending"
   },
   {
-    "id": "gst_1756678071959_7",
+    "id": "gst_1756724095993_7",
     "customerName": "Ananya Gupta",
     "invoiceDate": "2025-03-10",
     "invoiceNumber": "#1028",
@@ -107,12 +93,10 @@
     "orderValue": 650,
     "gstToReclaim": 78,
     "placeOfSupply": "West Bengal",
-    "status": "Completed",
-    "creditNoteNumber": "CN-2425-008",
-    "creditNoteDate": "2025-08-31T22:07:54.893Z"
+    "status": "Pending"
   },
   {
-    "id": "gst_1756678071959_8",
+    "id": "gst_1756724095993_8",
     "customerName": "Raj Malhotra",
     "invoiceDate": "2025-02-05",
     "invoiceNumber": "#1029",
@@ -121,12 +105,10 @@
     "orderValue": 540,
     "gstToReclaim": 48.6,
     "placeOfSupply": "07-Delhi",
-    "status": "Completed",
-    "creditNoteNumber": "CN-2425-009",
-    "creditNoteDate": "2025-08-31T22:07:54.893Z"
+    "status": "Pending"
   },
   {
-    "id": "gst_1756678071959_9",
+    "id": "gst_1756724095993_9",
     "customerName": "Meera Menon",
     "invoiceDate": "2025-01-15",
     "invoiceNumber": "#1030",
@@ -135,148 +117,6 @@
     "orderValue": 3499,
     "gstToReclaim": 629.82,
     "placeOfSupply": "Kerala",
-    "status": "Completed",
-    "creditNoteNumber": "CN-2425-010",
-    "creditNoteDate": "2025-08-31T22:07:54.893Z"
-  },
-  {
-    "id": "gst_1756678215365_0",
-    "customerName": "Aarav Sharma",
-    "invoiceDate": "2025-08-15",
-    "invoiceNumber": "#1021",
-    "rtoDate": "2025-08-22",
-    "products": "Organic Cotton T-shirt",
-    "orderValue": 1299,
-    "gstToReclaim": 233.82,
-    "placeOfSupply": "27-Maharashtra",
-    "status": "Completed",
-    "creditNoteNumber": "CN-2425-011",
-    "creditNoteDate": "2025-08-31T22:10:17.676Z"
-  },
-  {
-    "id": "gst_1756678215365_1",
-    "customerName": "Diya Patel",
-    "invoiceDate": "2025-07-20",
-    "invoiceNumber": "#1022",
-    "rtoDate": "2025-07-28",
-    "products": "Wireless Earbuds",
-    "orderValue": 3999,
-    "gstToReclaim": 719.82,
-    "placeOfSupply": "29-Karnataka",
-    "status": "Completed",
-    "creditNoteNumber": "CN-2425-012",
-    "creditNoteDate": "2025-08-31T22:10:17.676Z"
-  },
-  {
-    "id": "gst_1756678215365_2",
-    "customerName": "Rohan Verma",
-    "invoiceDate": "2025-08-01",
-    "invoiceNumber": "#1023",
-    "rtoDate": "2025-08-10",
-    "products": "Handcrafted Leather Wallet, Vegan Protein Powder (500g)",
-    "orderValue": 3298,
-    "gstToReclaim": 593.64,
-    "placeOfSupply": "27-Maharashtra",
-    "status": "Completed",
-    "creditNoteNumber": "CN-2425-013",
-    "creditNoteDate": "2025-08-31T22:10:17.676Z"
-  },
-  {
-    "id": "gst_1756678215365_3",
-    "customerName": "Isha Nair",
-    "invoiceDate": "2025-07-05",
-    "invoiceNumber": "#1024",
-    "rtoDate": "2025-07-14",
-    "products": "Smartwatch",
-    "orderValue": 8999,
-    "gstToReclaim": 1619.82,
-    "placeOfSupply": "33-Tamil Nadu",
-    "status": "Completed",
-    "creditNoteNumber": "CN-2425-014",
-    "creditNoteDate": "2025-08-31T22:10:17.676Z"
-  },
-  {
-    "id": "gst_1756678215365_4",
-    "customerName": "Arjun Reddy",
-    "invoiceDate": "2025-08-12",
-    "invoiceNumber": "#1025",
-    "rtoDate": "2025-08-20",
-    "products": "Sustainable Denim Jeans",
-    "orderValue": 2999,
-    "gstToReclaim": 149.95,
-    "placeOfSupply": "36-Telangana",
-    "status": "Completed",
-    "creditNoteNumber": "CN-2425-015",
-    "creditNoteDate": "2025-08-31T22:10:17.676Z"
-  },
-  {
-    "id": "gst_1756678215365_5",
-    "customerName": "Kavya Singh",
-    "invoiceDate": "2025-05-18",
-    "invoiceNumber": "#1026",
-    "rtoDate": "2025-05-25",
-    "products": "Ayurvedic Hair Oil (200ml)",
-    "orderValue": 1098,
-    "gstToReclaim": 98.82,
-    "placeOfSupply": "Rajasthan",
-    "status": "Completed",
-    "creditNoteNumber": "CN-2425-016",
-    "creditNoteDate": "2025-08-31T22:10:17.676Z"
-  },
-  {
-    "id": "gst_1756678215365_6",
-    "customerName": "Vikrant Joshi",
-    "invoiceDate": "2025-04-22",
-    "invoiceNumber": "#1027",
-    "rtoDate": "2025-04-29",
-    "products": "Ceramic Coffee Mug Set",
-    "orderValue": 899,
-    "gstToReclaim": 161.82,
-    "placeOfSupply": "24-Gujarat",
-    "status": "Completed",
-    "creditNoteNumber": "CN-2425-017",
-    "creditNoteDate": "2025-08-31T22:10:17.676Z"
-  },
-  {
-    "id": "gst_1756678215365_7",
-    "customerName": "Ananya Gupta",
-    "invoiceDate": "2025-03-10",
-    "invoiceNumber": "#1028",
-    "rtoDate": "2025-03-18",
-    "products": "Gourmet Coffee Beans (250g)",
-    "orderValue": 650,
-    "gstToReclaim": 78,
-    "placeOfSupply": "West Bengal",
-    "status": "Completed",
-    "creditNoteNumber": "CN-2425-018",
-    "creditNoteDate": "2025-08-31T22:10:17.676Z"
-  },
-  {
-    "id": "gst_1756678215365_8",
-    "customerName": "Raj Malhotra",
-    "invoiceDate": "2025-02-05",
-    "invoiceNumber": "#1029",
-    "rtoDate": "2025-02-12",
-    "products": "Bamboo Toothbrush Pack",
-    "orderValue": 540,
-    "gstToReclaim": 48.6,
-    "placeOfSupply": "07-Delhi",
-    "status": "Completed",
-    "creditNoteNumber": "CN-2425-019",
-    "creditNoteDate": "2025-08-31T22:10:17.676Z"
-  },
-  {
-    "id": "gst_1756678215365_9",
-    "customerName": "Meera Menon",
-    "invoiceDate": "2025-01-15",
-    "invoiceNumber": "#1030",
-    "rtoDate": "2025-01-23",
-    "products": "Bluetooth Portable Speaker",
-    "orderValue": 3499,
-    "gstToReclaim": 629.82,
-    "placeOfSupply": "Kerala",
-    "status": "Completed",
-    "creditNoteNumber": "CN-2425-020",
-    "creditNoteDate": "2025-08-31T22:10:17.676Z"
+    "status": "Pending"
   }
 ]

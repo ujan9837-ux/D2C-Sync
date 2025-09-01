@@ -6,17 +6,35 @@ import fs from 'fs';
 import multer from 'multer';
 import Papa from 'papaparse';
 import dotenv from 'dotenv';
-import { kv } from '@vercel/kv';
+import pg from 'pg';
+
 
 dotenv.config({ path: '.env.local' });
 
-// Check if KV is available
-let isKvAvailable = !!process.env.KV_URL;
+// Debug: Log available environment variables
+console.log('Available DB env vars:', {
+  DATABASE_URL: !!process.env.DATABASE_URL,
+  POSTGRES_URL: !!process.env.POSTGRES_URL,
+  POSTGRES_PRISMA_URL: !!process.env.POSTGRES_PRISMA_URL,
+  POSTGRES_URL_NON_POOLING: !!process.env.POSTGRES_URL_NON_POOLING,
+  NODE_ENV: process.env.NODE_ENV
+});
 
-// In-memory storage for GST items (fallback when no KV or file storage)
+// Create PostgreSQL pool for production
+const dbUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL_NON_POOLING;
+console.log('Using DB URL:', !!dbUrl);
+const pool = dbUrl ? new pg.Pool({ connectionString: dbUrl }) : null;
+
+// In-memory storage for GST items
 let inMemoryGstItems = [];
 
-const storage = isKvAvailable ? multer.memoryStorage() : multer.diskStorage({
+// Ensure uploads directory exists
+if (!fs.existsSync('uploads/')) {
+  fs.mkdirSync('uploads/', { recursive: true });
+  console.log('Created uploads/ directory');
+}
+
+const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, 'uploads/');
   },
@@ -33,29 +51,51 @@ const PORT = process.env.PORT || 3001;
 const SHOPIFY_WEBHOOK_SECRET = process.env.SHOPIFY_WEBHOOK_SECRET || 'your-shopify-webhook-secret-here';
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: true, // Allow all origins
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
 app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf; } })); // For webhook verification
 
-// GST Item Storage Functions (using in-memory, KV, or local file)
+// GST Item Storage Functions (using database for production, in-memory and local file for development)
 async function saveGstItems(items) {
   try {
-    // Always update in-memory storage
-    inMemoryGstItems = [...inMemoryGstItems, ...items];
-    console.log(`Saved ${items.length} GST items to in-memory storage`);
-
-    if (isKvAvailable) {
-      try {
-        await kv.set('gst-items', inMemoryGstItems);
-        console.log(`Saved GST items to KV`);
-        return 'gst-items';
-      } catch (kvError) {
-        console.warn('KV not available, using in-memory only:', kvError.message);
-        isKvAvailable = false; // Disable KV for future calls
+    if (process.env.NODE_ENV === 'production' && pool) {
+      // Use PostgreSQL pool for production
+      const query = `
+        INSERT INTO gst_items (
+          id, customer_name, invoice_date, invoice_number, rto_date, products,
+          order_value, gst_to_reclaim, place_of_supply, status, credit_note_number, credit_note_date, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+        ON CONFLICT (id) DO UPDATE SET
+          customer_name = EXCLUDED.customer_name,
+          invoice_date = EXCLUDED.invoice_date,
+          invoice_number = EXCLUDED.invoice_number,
+          rto_date = EXCLUDED.rto_date,
+          products = EXCLUDED.products,
+          order_value = EXCLUDED.order_value,
+          gst_to_reclaim = EXCLUDED.gst_to_reclaim,
+          place_of_supply = EXCLUDED.place_of_supply,
+          status = EXCLUDED.status,
+          credit_note_number = EXCLUDED.credit_note_number,
+          credit_note_date = EXCLUDED.credit_note_date,
+          updated_at = NOW()
+      `;
+      for (const item of items) {
+        await pool.query(query, [
+          item.id, item.customerName, item.invoiceDate, item.invoiceNumber,
+          item.rtoDate, item.products, item.orderValue, item.gstToReclaim,
+          item.placeOfSupply, item.status, item.creditNoteNumber || null, item.creditNoteDate || null
+        ]);
       }
-    }
+      console.log(`Saved ${items.length} GST items to database`);
+    } else {
+      // For local development, use in-memory and file
+      inMemoryGstItems = [...inMemoryGstItems, ...items];
+      console.log(`Saved ${items.length} GST items to in-memory storage`);
 
-    // For local development, also save to file
-    if (process.env.NODE_ENV !== 'production') {
       const filePath = 'gst-items.json';
       await fs.promises.writeFile(filePath, JSON.stringify(inMemoryGstItems, null, 2));
       console.log(`Saved GST items to local file`);
@@ -70,33 +110,86 @@ async function saveGstItems(items) {
 
 async function getGstItems() {
   try {
-    // If in-memory has items, return them
-    if (inMemoryGstItems.length > 0) {
-      return inMemoryGstItems;
-    }
+    if (process.env.NODE_ENV === 'production' && pool) {
+      console.log('getGstItems: Production mode, checking database');
+      // First check if table exists
+      const tableCheck = await pool.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables
+          WHERE table_name = 'gst_items'
+        );
+      `);
 
-    if (isKvAvailable) {
-      try {
-        const items = await kv.get('gst-items') || [];
-        inMemoryGstItems = items; // Load into memory
-        return items;
-      } catch (kvError) {
-        console.warn('KV not available, falling back to local storage:', kvError.message);
-        isKvAvailable = false; // Disable KV for future calls
+      if (!tableCheck.rows[0].exists) {
+        console.log('gst_items table does not exist, creating it...');
+        await pool.query(`
+          CREATE TABLE IF NOT EXISTS gst_items (
+            id TEXT PRIMARY KEY,
+            customer_name TEXT,
+            invoice_date DATE,
+            invoice_number TEXT,
+            rto_date DATE,
+            products TEXT,
+            order_value DECIMAL(10,2),
+            gst_to_reclaim DECIMAL(10,2),
+            place_of_supply TEXT,
+            status TEXT DEFAULT 'Pending',
+            credit_note_number TEXT,
+            credit_note_date DATE,
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW()
+          );
+        `);
+        console.log('gst_items table created successfully, returning empty array for empty state');
+        return [];
       }
-    }
 
-    // For local development, load from file
-    if (process.env.NODE_ENV !== 'production') {
-      const filePath = 'gst-items.json';
-      if (fs.existsSync(filePath)) {
-        const data = await fs.promises.readFile(filePath, 'utf8');
-        inMemoryGstItems = JSON.parse(data);
+      // Query from PostgreSQL pool
+      const result = await pool.query('SELECT * FROM gst_items ORDER BY created_at DESC');
+      console.log(`Retrieved ${result.rows.length} GST items from database`);
+      return result.rows.map(row => ({
+        id: row.id,
+        customerName: row.customer_name,
+        invoiceDate: row.invoice_date,
+        invoiceNumber: row.invoice_number,
+        rtoDate: row.rto_date,
+        products: row.products,
+        orderValue: parseFloat(row.order_value),
+        gstToReclaim: parseFloat(row.gst_to_reclaim),
+        placeOfSupply: row.place_of_supply,
+        status: row.status,
+        creditNoteNumber: row.credit_note_number,
+        creditNoteDate: row.credit_note_date
+      }));
+    } else {
+      console.log('getGstItems: Local development mode');
+      // For local development, use in-memory and file
+      if (inMemoryGstItems.length > 0) {
+        console.log(`Returning ${inMemoryGstItems.length} items from in-memory storage`);
         return inMemoryGstItems;
       }
-    }
 
-    return [];
+      const filePath = 'gst-items.json';
+      console.log(`Checking if file exists: ${filePath}`);
+      if (fs.existsSync(filePath)) {
+        console.log('File exists, reading...');
+        try {
+          const data = await fs.promises.readFile(filePath, 'utf8');
+          console.log(`File read successfully, parsing JSON...`);
+          inMemoryGstItems = JSON.parse(data);
+          console.log(`Parsed ${inMemoryGstItems.length} items from file`);
+          return inMemoryGstItems;
+        } catch (parseError) {
+          console.error('Error parsing gst-items.json, treating as corrupted and returning empty array:', parseError);
+          // Reset in-memory to empty and return empty for clean state
+          inMemoryGstItems = [];
+          return [];
+        }
+      }
+
+      console.log('No file found, returning empty array for clean empty state');
+      return [];
+    }
   } catch (error) {
     console.error('Error retrieving GST items:', error);
     throw error;
@@ -105,22 +198,13 @@ async function getGstItems() {
 
 async function saveUpdatedGstItems() {
   try {
-    if (isKvAvailable) {
-      try {
-        await kv.set('gst-items', inMemoryGstItems);
-        console.log(`Saved updated GST items to KV`);
-      } catch (kvError) {
-        console.warn('KV not available, using in-memory only:', kvError.message);
-        isKvAvailable = false; // Disable KV for future calls
-      }
-    }
-
-    // For local development, also save to file
+    // For local development, save to file
     if (process.env.NODE_ENV !== 'production') {
       const filePath = 'gst-items.json';
       await fs.promises.writeFile(filePath, JSON.stringify(inMemoryGstItems, null, 2));
       console.log(`Saved updated GST items to local file`);
     }
+    // For production, updates are already in DB
   } catch (error) {
     console.error('Error saving updated GST items:', error);
     throw error;
@@ -129,22 +213,30 @@ async function saveUpdatedGstItems() {
 
 async function deleteGstItem(itemId) {
   try {
-    // Ensure data is loaded
-    if (inMemoryGstItems.length === 0) {
-      await getGstItems();
-    }
+    if (process.env.NODE_ENV === 'production' && pool) {
+      // Delete from PostgreSQL pool
+      const result = await pool.query('DELETE FROM gst_items WHERE id = $1', [itemId]);
+      const deleted = result.rowCount > 0;
+      if (deleted) {
+        console.log(`Deleted GST item ${itemId} from database`);
+      }
+      return deleted;
+    } else {
+      // For local development, use in-memory and file
+      if (inMemoryGstItems.length === 0) {
+        await getGstItems();
+      }
 
-    // Update in-memory storage
-    const initialLength = inMemoryGstItems.length;
-    inMemoryGstItems = inMemoryGstItems.filter(item => item.id !== itemId);
-    const deleted = inMemoryGstItems.length < initialLength;
-    if (deleted) {
-      console.log(`Deleted GST item ${itemId} from in-memory storage`);
-      // Save updated items to persistent storage
-      await saveUpdatedGstItems();
-    }
+      const initialLength = inMemoryGstItems.length;
+      inMemoryGstItems = inMemoryGstItems.filter(item => item.id !== itemId);
+      const deleted = inMemoryGstItems.length < initialLength;
+      if (deleted) {
+        console.log(`Deleted GST item ${itemId} from in-memory storage`);
+        await saveUpdatedGstItems();
+      }
 
-    return deleted;
+      return deleted;
+    }
   } catch (error) {
     console.error('Error deleting GST item:', error);
     throw error;
@@ -202,14 +294,10 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     return res.status(400).send('No file uploaded.');
   }
 
-  // If using KV and memory storage, save file content to KV
-  if (isKvAvailable) {
-    try {
-      await kv.set('upload:' + req.file.filename, req.file.buffer);
-    } catch (kvError) {
-      console.warn('Failed to save upload to KV:', kvError.message);
-      return res.status(500).send('Failed to save file.');
-    }
+  // Ensure uploads directory exists
+  if (!fs.existsSync('uploads/')) {
+    fs.mkdirSync('uploads/', { recursive: true });
+    console.log('Created uploads/ directory');
   }
 
   res.json({
@@ -220,8 +308,13 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
 
 // GET endpoint to list uploaded files
 app.get('/api/uploads', (req, res) => {
+  if (!fs.existsSync('uploads/')) {
+    console.log('uploads/ directory does not exist, returning empty array');
+    return res.json([]);
+  }
   fs.readdir('uploads/', (err, files) => {
     if (err) {
+      console.error('Error reading uploads directory:', err);
       return res.status(500).send('Unable to scan directory.');
     }
     res.json(files);
@@ -233,14 +326,18 @@ app.get('/api/file/:filename', (req, res) => {
   const { filename } = req.params;
   const filePath = path.join('uploads', filename);
 
+  console.log(`Attempting to read file: ${filePath}`);
   if (!fs.existsSync(filePath)) {
+    console.log(`File not found: ${filePath}`);
     return res.status(404).json({ error: 'File not found' });
   }
 
   fs.readFile(filePath, 'utf8', (err, data) => {
     if (err) {
+      console.error(`Error reading file ${filePath}:`, err);
       return res.status(500).json({ error: 'Error reading file' });
     }
+    console.log(`Successfully read file: ${filePath}, length: ${data.length}`);
     res.json({ content: data });
   });
 });
@@ -342,7 +439,7 @@ app.post('/api/process-file', async (req, res) => {
       }));
     }
 
-    // Save GST items to KV
+    // Save GST items to storage
     const storageKey = await saveGstItems(gstItems);
     res.json({ gstItems, storageKey });
   } catch (error) {
@@ -367,27 +464,128 @@ app.put('/api/gst-items/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { status, creditNoteNumber, creditNoteDate } = req.body;
+    console.log('PUT /api/gst-items/:id called with id:', id, 'body:', req.body);
 
-    // Ensure data is loaded
-    if (inMemoryGstItems.length === 0) {
-      await getGstItems();
+    if (process.env.NODE_ENV === 'production' && pool) {
+      // Update in PostgreSQL pool
+      const updateFields = [];
+      const values = [id];
+      let paramIndex = 2;
+
+      if (status) {
+        updateFields.push(`status = $${paramIndex++}`);
+        values.push(status);
+      }
+      if (creditNoteNumber !== undefined) {
+        updateFields.push(`credit_note_number = $${paramIndex++}`);
+        values.push(creditNoteNumber);
+      }
+      if (creditNoteDate !== undefined) {
+        updateFields.push(`credit_note_date = $${paramIndex++}`);
+        values.push(creditNoteDate);
+      }
+
+      if (updateFields.length > 0) {
+        updateFields.push('updated_at = NOW()');
+        const query = `UPDATE gst_items SET ${updateFields.join(', ')} WHERE id = $1 RETURNING *`;
+        const result = await pool.query(query, values);
+        if (result.length === 0) {
+          return res.status(404).json({ error: 'GST item not found' });
+        }
+        const row = result[0];
+        const updatedItem = {
+          id: row.id,
+          customerName: row.customer_name,
+          invoiceDate: row.invoice_date,
+          invoiceNumber: row.invoice_number,
+          rtoDate: row.rto_date,
+          products: row.products,
+          orderValue: parseFloat(row.order_value),
+          gstToReclaim: parseFloat(row.gst_to_reclaim),
+          placeOfSupply: row.place_of_supply,
+          status: row.status,
+          creditNoteNumber: row.credit_note_number,
+          creditNoteDate: row.credit_note_date
+        };
+        console.log('Updated item in DB:', updatedItem);
+        res.json(updatedItem);
+      } else {
+        // No fields to update, just return current item
+        const result = await pool.query('SELECT * FROM gst_items WHERE id = $1', [id]);
+        if (result.rows.length === 0) {
+          return res.status(404).json({ error: 'GST item not found' });
+        }
+        const row = result.rows[0];
+        res.json({
+          id: row.id,
+          customerName: row.customer_name,
+          invoiceDate: row.invoice_date,
+          invoiceNumber: row.invoice_number,
+          rtoDate: row.rto_date,
+          products: row.products,
+          orderValue: parseFloat(row.order_value),
+          gstToReclaim: parseFloat(row.gst_to_reclaim),
+          placeOfSupply: row.place_of_supply,
+          status: row.status,
+          creditNoteNumber: row.credit_note_number,
+          creditNoteDate: row.credit_note_date
+        });
+      }
+    } else {
+      // For local development, use in-memory and file
+      if (inMemoryGstItems.length === 0) {
+        await getGstItems();
+      }
+
+      const item = inMemoryGstItems.find(item => item.id === id);
+      if (!item) {
+        console.log('GST item not found for id:', id);
+        return res.status(404).json({ error: 'GST item not found' });
+      }
+      console.log('Found item:', item);
+      if (status) item.status = status;
+      if (creditNoteNumber) item.creditNoteNumber = creditNoteNumber;
+      if (creditNoteDate) item.creditNoteDate = creditNoteDate;
+      console.log('Updated item:', item);
+
+      await saveUpdatedGstItems();
+
+      res.json(item);
     }
-
-    const item = inMemoryGstItems.find(item => item.id === id);
-    if (!item) {
-      return res.status(404).json({ error: 'GST item not found' });
-    }
-    if (status) item.status = status;
-    if (creditNoteNumber) item.creditNoteNumber = creditNoteNumber;
-    if (creditNoteDate) item.creditNoteDate = creditNoteDate;
-
-    // Save updated items to persistent storage
-    await saveUpdatedGstItems();
-
-    res.json(item);
   } catch (error) {
     console.error('Error updating GST item:', error);
     res.status(500).json({ error: 'Failed to update GST item' });
+  }
+});
+
+// DELETE endpoint to delete completed GST items
+app.delete('/api/gst-items/completed', async (req, res) => {
+  try {
+    if (process.env.NODE_ENV === 'production' && pool) {
+      // Delete from PostgreSQL pool
+      const result = await pool.query('DELETE FROM gst_items WHERE status = $1', ['Completed']);
+      const deletedCount = result.rowCount;
+      res.json({ message: `${deletedCount} completed GST items deleted successfully` });
+    } else {
+      // For local development, use in-memory and file
+      if (inMemoryGstItems.length === 0) {
+        await getGstItems();
+      }
+
+      const initialLength = inMemoryGstItems.length;
+      inMemoryGstItems = inMemoryGstItems.filter(item => item.status !== 'Completed');
+      const deletedCount = initialLength - inMemoryGstItems.length;
+
+      if (deletedCount > 0) {
+        await saveUpdatedGstItems();
+        res.json({ message: `${deletedCount} completed GST items deleted successfully` });
+      } else {
+        res.json({ message: 'No completed GST items found to delete' });
+      }
+    }
+  } catch (error) {
+    console.error('Error deleting completed GST items:', error);
+    res.status(500).json({ error: 'Failed to delete completed GST items' });
   }
 });
 
@@ -410,38 +608,19 @@ app.delete('/api/gst-items/:id', async (req, res) => {
 // DELETE endpoint to delete all GST items
 app.delete('/api/gst-items', async (req, res) => {
   try {
-    inMemoryGstItems = [];
-    // Save updated (empty) items to persistent storage
-    await saveUpdatedGstItems();
-    res.json({ message: 'All GST items deleted successfully' });
+    if (process.env.NODE_ENV === 'production' && pool) {
+      // Delete all from PostgreSQL pool
+      await pool.query('DELETE FROM gst_items');
+      res.json({ message: 'All GST items deleted successfully' });
+    } else {
+      // For local development, clear in-memory and file
+      inMemoryGstItems = [];
+      await saveUpdatedGstItems();
+      res.json({ message: 'All GST items deleted successfully' });
+    }
   } catch (error) {
     console.error('Error deleting all GST items:', error);
     res.status(500).json({ error: 'Failed to delete all GST items' });
-  }
-});
-
-// DELETE endpoint to delete completed GST items
-app.delete('/api/gst-items/completed', async (req, res) => {
-  try {
-    // Ensure data is loaded
-    if (inMemoryGstItems.length === 0) {
-      await getGstItems();
-    }
-
-    const initialLength = inMemoryGstItems.length;
-    inMemoryGstItems = inMemoryGstItems.filter(item => item.status !== 'Completed');
-    const deletedCount = initialLength - inMemoryGstItems.length;
-
-    if (deletedCount > 0) {
-      // Save updated items to persistent storage
-      await saveUpdatedGstItems();
-      res.json({ message: `${deletedCount} completed GST items deleted successfully` });
-    } else {
-      res.json({ message: 'No completed GST items found to delete' });
-    }
-  } catch (error) {
-    console.error('Error deleting completed GST items:', error);
-    res.status(500).json({ error: 'Failed to delete completed GST items' });
   }
 });
 

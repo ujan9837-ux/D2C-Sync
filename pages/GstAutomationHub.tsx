@@ -60,13 +60,25 @@ const GstAutomationHub: React.FC = () => {
     };
 
     const handleImportData = () => {
+        console.log('handleImportData called');
         fileInputRef.current?.click();
     };
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        console.log('GstAutomationHub: handleFileChange called');
         const file = event.target.files?.[0];
         if (file) {
+            console.log('GstAutomationHub: File selected:', {
+                name: file.name,
+                size: file.size,
+                type: file.type,
+                lastModified: file.lastModified
+            });
+            console.log('GstAutomationHub: Calling uploadAndProcessFile');
             await uploadAndProcessFile(file);
+            console.log('GstAutomationHub: uploadAndProcessFile completed');
+        } else {
+            console.log('GstAutomationHub: No file selected');
         }
     };
 
@@ -129,6 +141,7 @@ const GstAutomationHub: React.FC = () => {
     };
     
     const handleExport = async () => {
+        console.log('handleExport called');
         if(sortedItems.length === 0) {
             toast.error("No data to export.");
             return;
@@ -169,10 +182,10 @@ const GstAutomationHub: React.FC = () => {
         const today = new Date().toISOString().slice(0, 10);
         exportToCsv(`gstr1-cdnur-export-${today}.csv`, gstr1Data);
         toast.success("Export successful! The CSV is formatted for the GSTN Returns Offline Tool.");
-        await deleteCompletedGstItems();
     }
 
     const handleExportZoho = async () => {
+        console.log('handleExportZoho called');
         if (sortedItems.length === 0) {
             toast.error("No data to export.");
             return;
@@ -191,10 +204,10 @@ const GstAutomationHub: React.FC = () => {
         const today = new Date().toISOString().slice(0, 10);
         exportToCsv(`zoho-books-export-${today}.csv`, zohoData);
         toast.success("Export successful for Zoho Books!");
-        await deleteCompletedGstItems();
     }
 
     const handleExportKhatabook = async () => {
+        console.log('handleExportKhatabook called');
         if (sortedItems.length === 0) {
             toast.error("No data to export.");
             return;
@@ -211,12 +224,17 @@ const GstAutomationHub: React.FC = () => {
         const today = new Date().toISOString().slice(0, 10);
         exportToCsv(`khatabook-export-${today}.csv`, khatabookData);
         toast.success("Export successful for Khatabook!");
-        await deleteCompletedGstItems();
     }
 
     const handleDeleteAllCompleted = async () => {
         if (window.confirm('Are you sure you want to delete all completed GST items? This action cannot be undone.')) {
             await deleteCompletedGstItems();
+        }
+    };
+
+    const handleDeleteAll = async () => {
+        if (window.confirm('Are you sure you want to delete all GST items? This action cannot be undone.')) {
+            await deleteAllGstItems();
         }
     };
 
@@ -270,7 +288,7 @@ const GstAutomationHub: React.FC = () => {
                             <Button onClick={handleImportData} variant="secondary" className="w-full sm:w-auto">
                                 Import Data
                             </Button>
-                            <Button onClick={() => deleteAllGstItems()} variant="secondary" className="w-full sm:w-auto">
+                            <Button onClick={handleDeleteAll} variant="secondary" className="w-full sm:w-auto">
                                 Delete All
                             </Button>
                         </>

@@ -1,0 +1,2 @@
+customerName,invoiceNumber,orderValue,gstToReclaim,placeOfSupply,status
+John Doe,INV-001,1000,150,27-Maharashtra,Pending
