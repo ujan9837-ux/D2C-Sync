@@ -8,6 +8,25 @@ console.log('DEBUG: Using file-based storage at:', gstItemsFilePath);
 
 exports.handler = async (event, context) => {
   console.log('API /api/process-file called with method:', event.httpMethod);
+  console.log('DEBUG: __dirname:', __dirname);
+  console.log('DEBUG: process.cwd():', process.cwd());
+  console.log('DEBUG: NETLIFY_DEV:', process.env.NETLIFY_DEV);
+  console.log('DEBUG: NETLIFY:', process.env.NETLIFY);
+  const isLocalDev = process.env.NETLIFY_DEV === 'true';
+  const shopifyDataPath = isLocalDev ? path.join(__dirname, '../../data/real_shopify_data.json') : '/opt/build/repo/data/real_shopify_data.json';
+  console.log('DEBUG: Attempting to access Shopify data at:', shopifyDataPath);
+  console.log('DEBUG: Resolved absolute path:', path.resolve(shopifyDataPath));
+  try {
+    if (fs.existsSync(shopifyDataPath)) {
+      console.log('DEBUG: Shopify data file exists');
+      const fileContent = fs.readFileSync(shopifyDataPath, 'utf8');
+      console.log('DEBUG: Successfully read Shopify data file, length:', fileContent.length);
+    } else {
+      console.log('DEBUG: Shopify data file does not exist at path');
+    }
+  } catch (fileAccessError) {
+    console.log('DEBUG: Error accessing Shopify data file:', fileAccessError.message);
+  }
 
   // Handle preflight OPTIONS request
   if (event.httpMethod === 'OPTIONS') {
