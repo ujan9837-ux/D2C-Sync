@@ -6,9 +6,14 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD 
 
 export const getGstData = async (): Promise<GstActionItem[]> => {
   console.log('getGstData: Attempting to fetch from API_BASE_URL:', API_BASE_URL);
+  const url = `${API_BASE_URL}/api/gst-items`;
+  console.log('getGstData: Full URL:', url);
   try {
-    const response = await fetch(`${API_BASE_URL}/api/gst-items`);
+    console.log('getGstData: Making fetch request...');
+    const response = await fetch(url);
+    console.log('getGstData: Fetch response received');
     console.log('getGstData: Fetch response status:', response.status, 'ok:', response.ok);
+    console.log('getGstData: Response headers:', Object.fromEntries(response.headers.entries()));
     if (!response.ok) {
       throw new Error(`Failed to fetch GST data: ${response.status} ${response.statusText}`);
     }
@@ -17,6 +22,8 @@ export const getGstData = async (): Promise<GstActionItem[]> => {
     return data.gstItems || [];
   } catch (error) {
     console.error('getGstData: Error fetching GST data:', error);
+    console.error('getGstData: Error type:', error.constructor.name);
+    console.error('getGstData: Error message:', error.message);
     console.log('getGstData: Server unavailable, but NOT falling back to mock data for clean empty state');
     // For empty state, do not fallback to mock data - return empty array
     return [];

@@ -45,6 +45,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     const fetchExistingGstData = async () => {
       console.log('AppContext: Starting to fetch existing GST data for clean empty state');
+      console.log('AppContext: API_BASE_URL:', API_BASE_URL);
+      console.log('AppContext: import.meta.env.PROD:', import.meta.env.PROD);
+      console.log('AppContext: import.meta.env.VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL);
       setLoading(true);
       try {
         console.log('AppContext: Calling getGstData');
