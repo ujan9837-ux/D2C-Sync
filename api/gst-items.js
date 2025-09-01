@@ -1,8 +1,8 @@
 import pg from 'pg';
 
-// Direct database connection using Neon DATABASE_URL
-const dbUrl = 'postgresql://neondb_owner:npg_A6yH3CuqXErI@ep-solitary-shadow-a1r1bs0n-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require';
-const pool = new pg.Pool({ connectionString: dbUrl });
+// Check for database URL in multiple possible environment variables
+const dbUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL_NON_POOLING;
+const pool = dbUrl ? new pg.Pool({ connectionString: dbUrl }) : null;
 
 export default async function handler(req, res) {
   console.log('API /api/gst-items called with method:', req.method);
