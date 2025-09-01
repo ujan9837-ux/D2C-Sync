@@ -34,6 +34,74 @@ if (!fs.existsSync('uploads/')) {
   console.log('Created uploads/ directory');
 }
 
+// Attempt to load real_shopify_data.json on startup
+async function loadRealShopifyData() {
+  const filePath = './data/real_shopify_data.json';
+  console.log('Attempting to load real_shopify_data.json from:', filePath);
+  console.log('Current working directory:', process.cwd());
+  console.log('NODE_ENV:', process.env.NODE_ENV);
+
+  try {
+    if (fs.existsSync(filePath)) {
+      console.log('File exists, reading...');
+      const data = await fs.promises.readFile(filePath, 'utf8');
+      console.log('File read successfully, parsing JSON...');
+      const orders = JSON.parse(data);
+      console.log(`Parsed ${orders.length} orders from real_shopify_data.json`);
+
+      // Process the orders using the same logic as process-file
+      const stateCodeMap = {
+        'Maharashtra': '27-Maharashtra',
+        'Delhi': '07-Delhi',
+        'Karnataka': '29-Karnataka',
+        'Tamil Nadu': '33-Tamil Nadu',
+        'Telangana': '36-Telangana',
+        'Gujarat': '24-Gujarat',
+        'Uttar Pradesh': '09-Uttar Pradesh'
+      };
+
+      const gstItems = orders.filter(order => order.refunds && order.refunds.length > 0).map((order, index) => {
+        const customerName = `${order.customer.first_name} ${order.customer.last_name}`;
+        const invoiceDate = order.created_at.split('T')[0];
+        const invoiceNumber = order.name;
+        const rtoDate = order.refunds[0].created_at.split('T')[0];
+        const products = order.line_items.map(item => item.title).join(', ');
+        const orderValue = order.line_items.reduce((sum, item) => sum + parseFloat(item.price) * item.quantity, 0);
+        const gstToReclaim = order.line_items.reduce((sum, item) => sum + item.tax_lines.reduce((taxSum, tax) => taxSum + parseFloat(tax.price), 0), 0);
+        const province = order.shipping_address?.province;
+        const placeOfSupply = stateCodeMap[province] || province;
+
+        return {
+          id: `real_shopify_${Date.now()}_${index}`,
+          customerName,
+          invoiceDate,
+          invoiceNumber,
+          rtoDate,
+          products,
+          orderValue,
+          gstToReclaim,
+          placeOfSupply,
+          status: 'Pending'
+        };
+      });
+
+      console.log(`Processed ${gstItems.length} GST items from real_shopify_data.json`);
+
+      if (gstItems.length > 0) {
+        await saveGstItems(gstItems);
+        console.log('Successfully loaded and saved real Shopify data');
+      } else {
+        console.log('No GST items found in real_shopify_data.json (no orders with refunds)');
+      }
+    } else {
+      console.log('real_shopify_data.json not found at:', filePath);
+      console.log('Note: This file should be located in the ./data/ directory for deployment');
+    }
+  } catch (error) {
+    console.error('Error loading real_shopify_data.json:', error);
+  }
+}
+
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, 'uploads/');
@@ -631,5 +699,7 @@ export default app;
 if (process.env.NODE_ENV !== 'production') {
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+    // Load real Shopify data on startup
+    loadRealShopifyData();
   });
 }

@@ -31,23 +31,39 @@ export const getGstData = async (): Promise<GstActionItem[]> => {
 };
 
 export const uploadFile = async (file: File): Promise<string> => {
-  console.log('apiService: uploadFile called with file:', file.name);
+  console.log('apiService: uploadFile called with file:', file.name, 'size:', file.size);
 
-  const formData = new FormData();
-  formData.append('file', file);
+  try {
+    // Read file content as text
+    const content = await file.text();
+    console.log('apiService: File content read, length:', content.length);
 
-  const response = await fetch(`${API_BASE_URL}/api/upload`, {
-    method: 'POST',
-    body: formData,
-  });
+    const response = await fetch(`${API_BASE_URL}/api/upload`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        filename: file.name,
+        content: content,
+      }),
+    });
 
-  if (!response.ok) {
-    throw new Error('Failed to upload file');
+    console.log('apiService: Upload fetch response status:', response.status, 'ok:', response.ok);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('apiService: Upload failed with response:', errorText);
+      throw new Error('Failed to upload file');
+    }
+
+    const data = await response.json();
+    console.log('apiService: Upload response:', data);
+    return data.filename;
+  } catch (error) {
+    console.error('apiService: Error in uploadFile:', error);
+    throw error;
   }
-
-  const data = await response.json();
-  console.log('apiService: Upload response:', data);
-  return data.filename;
 };
 
 export const processFile = async (content: string, filename: string): Promise<GstActionItem[]> => {

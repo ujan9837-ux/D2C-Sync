@@ -119,10 +119,11 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: 'Database connection not available' });
       }
 
-      // Ensure table exists
-      console.log('Ensuring gst_items table exists...');
+      // Ensure table exists with correct schema
+      console.log('Ensuring gst_items table exists with correct schema...');
+      await pool.query(`DROP TABLE IF EXISTS gst_items`);
       await pool.query(`
-        CREATE TABLE IF NOT EXISTS gst_items (
+        CREATE TABLE gst_items (
           id TEXT PRIMARY KEY,
           customer_name TEXT,
           invoice_date DATE,
@@ -139,7 +140,7 @@ export default async function handler(req, res) {
           updated_at TIMESTAMP DEFAULT NOW()
         );
       `);
-      console.log('Table ensured, proceeding with insertion');
+      console.log('Table created with correct schema, proceeding with insertion');
 
       const query = `
         INSERT INTO gst_items (id, customer_name, invoice_date, invoice_number, rto_date, products, order_value, gst_to_reclaim, place_of_supply, status)
